@@ -4,9 +4,7 @@ use std::{
     process::exit,
     sync::{Arc, Mutex},
 };
-use std::io::Write;
 use ethabi::ParamType;
-use flate2::write::GzDecoder;
 use arith::{Field, FieldSerde, FieldSerdeError};
 use circuit::Circuit;
 use config::{
@@ -200,16 +198,14 @@ async fn verify(
     data: Vec<u8>,
     mpi_config: MPIConfig,
 ) {
-    let mut e = GzDecoder::new(Vec::new());
-    e.write_all(&data).expect("Unable to write proof bytes.");
-    let decompress_data = e.finish().expect("Unable to finish proof bytes.");
+
     let tokens = ethabi::decode(
         &[ParamType::Tuple(vec![
             ParamType::Bytes,
             ParamType::Bytes,
             ParamType::Bytes,
         ])],
-        &decompress_data,
+        &data,
     ).expect("Unable to decode ethereum abi.");
 
     let tuple = tokens
@@ -272,13 +268,11 @@ async fn verify_bytes(
     args: &[String],
     mpi_config: MPIConfig,
 ) {
-    let data_str = {
-        let data = &args[2];
-        data.strip_prefix("0x").unwrap_or(&data).trim().to_string()
-    };
-    let data_bytes = hex::decode(data_str).expect("Unable to decode hex string.");
 
-    verify(data_bytes, mpi_config).await;
+    let data = &args[2];
+    let data_bytes = data.as_bytes();
+
+    verify(data_bytes.to_vec(), mpi_config).await;
 }
 
 async fn verify_scd(
@@ -287,11 +281,7 @@ async fn verify_scd(
 ) {
 
     let data_file = &args[2];
-    let tx_data = {
-        let data = fs::read_to_string(data_file).expect("Unable to read proof from file.");
-        data.strip_prefix("0x").unwrap_or(&data).trim().to_string()
-    };
-    let data_bytes = hex::decode(tx_data).expect("Unable to decode hex string.");
+    let data_bytes = fs::read(data_file).expect("Unable to read proof from file.");
 
     verify(data_bytes, mpi_config).await;
 
