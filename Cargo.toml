@@ -41,3 +41,6 @@ tynm = { version = "0.1.6", default-features = false }
 warp = "0.3.7"
 thiserror = "1.0.63"
 ethnum = "1.5.0"
+
+[profile.release]
+strip = true
